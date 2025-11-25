@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pg_trgm Fuzzy Search Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        #keyword {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        #keyword:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 20px;
+        }
+
+        .stats {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        #results {
+            display: grid;
+            gap: 15px;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+        }
+
+        .result-score {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-left: 15px;
+        }
+
+        .similarity {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .match-type {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+        }
+
+        .result-description {
+            color: #666;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+            opacity: 0.8;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Fuzzy Search Demo</h1>
+            <p>PostgreSQL pg_trgm Trigram-based Search</p>
+        </div>
+
+        <div class="search-box">
+            <div class="search-input-wrapper">
+                <input type="text" id="keyword" placeholder="Search for books... (try: harry, lord, 1984, hobbit)"
+                    autocomplete="off">
+                <span class="search-icon">🔎</span>
+            </div>
+            <div class="stats" id="stats"></div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const keywordInput = document.getElementById('keyword');
+        const resultsDiv = document.getElementById('results');
+        const statsDiv = document.getElementById('stats');
+
+        let debounceTimer;
+        let currentSearch = '';
+
+        // Debounced search function
+        function debounceSearch(query) {
+            clearTimeout(debounceTimer);
+
+            debounceTimer = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+        }
+
+        // Perform search
+        async function performSearch(query) {
+            const trimmedQuery = query.trim();
+
+            if (trimmedQuery.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            currentSearch = trimmedQuery;
+            showLoading();
+
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+
+                if (!response.ok) {
+                    throw new Error('Search request failed');
+                }
+
+                const results = await response.json();
+
+                // Only update if this is still the current search
+                if (currentSearch === trimmedQuery) {
+                    displayResults(results, trimmedQuery);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showError('Failed to perform search. Please check if the server is running.');
+            }
+        }
+
+        // Display search results
+        function displayResults(results, query) {
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No results found for "' + escapeHtml(query) + '"</div>';
+                statsDiv.textContent = 'No matches found';
+                return;
+            }
+
+            statsDiv.textContent = `Found ${results.length} result${results.length > 1 ? 's' : ''} for "${query}"`;
+
+            const html = results.map(result => {
+                const truncatedDesc = truncateText(result.description, 200);
+                const matchTypeBadge = getMatchTypeBadge(result.matchType);
+
+                return `
+                    <div class="result-item">
+                        <div class="result-header">
+                            <div class="result-title">${escapeHtml(result.title)}</div>
+                            <div class="result-score">
+                                <span class="similarity">Score: ${result.similarity}</span>
+                                <span class="match-type">${matchTypeBadge}</span>
+                            </div>
+                        </div>
+                        <div class="result-description">${escapeHtml(truncatedDesc)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Get match type badge text
+        function getMatchTypeBadge(type) {
+            const badges = {
+                'prefix': '📍 Prefix',
+                'contains': '🔤 Contains',
+                'fuzzy': '🎯 Fuzzy'
+            };
+            return badges[type] || type;
+        }
+
+        // Show loading state
+        function showLoading() {
+            resultsDiv.innerHTML = '<div class="loading">⏳ Searching...</div>';
+            statsDiv.textContent = 'Searching...';
+        }
+
+        // Show empty state
+        function showEmptyState() {
+            resultsDiv.innerHTML = `
+                <div class="empty-state">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+                    </svg>
+                    <p>Type to search for books...</p>
+                </div>
+            `;
+            statsDiv.textContent = '';
+        }
+
+        // Show error message
+        function showError(message) {
+            resultsDiv.innerHTML = `<div class="error">❌ ${escapeHtml(message)}</div>`;
+            statsDiv.textContent = '';
+        }
+
+        // Utility: Truncate text
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) {
+                return text || '';
+            }
+            return text.substring(0, maxLength) + '...';
+        }
+
+        // Utility: Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listener for input
+        keywordInput.addEventListener('input', (e) => {
+            debounceSearch(e.target.value);
+        });
+
+        // Initial state
+        showEmptyState();
+
+        // Focus on input on load
+        keywordInput.focus();
+    </script>
+</body>
+
+</html>
