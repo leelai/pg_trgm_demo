@@ -1,23 +1,11 @@
--- Enable pg_trgm extension for trigram-based fuzzy search
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
--- Create worlds table to store book data
-CREATE TABLE IF NOT EXISTS worlds (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT
-);
-
--- Create trigram indexes for fuzzy search
--- These indexes enable fast similarity searches using pg_trgm
-CREATE INDEX IF NOT EXISTS idx_title_trgm ON worlds USING gin (title gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_desc_trgm ON worlds USING gin (description gin_trgm_ops);
-
 -- ============================================================================
--- 管理函數
+-- 測試資料產生腳本
+-- 用於快速產生大量測試資料,測試不同資料量對 pg_trgm 搜尋效能的影響
 -- ============================================================================
 
 -- 函數: 產生指定數量的測試資料
+-- 使用 md5(random()::text) 產生隨機字串
+-- 參數: record_count - 要產生的資料筆數
 CREATE OR REPLACE FUNCTION generate_test_data(record_count INTEGER)
 RETURNS TABLE(
     inserted_count INTEGER,
@@ -118,3 +106,51 @@ BEGIN
         EXTRACT(EPOCH FROM (end_time - start_time)) * 1000;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- 使用範例
+-- ============================================================================
+
+-- 產生 10,000 筆測試資料
+-- SELECT * FROM generate_test_data(10000);
+
+-- 產生 50,000 筆測試資料
+-- SELECT * FROM generate_test_data(50000);
+
+-- 產生 100,000 筆測試資料
+-- SELECT * FROM generate_test_data(100000);
+
+-- 清空所有資料
+-- SELECT * FROM clear_all_data();
+
+-- 取得資料統計
+-- SELECT * FROM get_data_stats();
+
+-- 重建索引
+-- SELECT * FROM rebuild_indexes();
+
+-- ============================================================================
+-- 直接執行 SQL (不使用函數)
+-- ============================================================================
+
+-- 直接插入 10,000 筆
+-- INSERT INTO worlds (title, description)
+-- SELECT
+--     md5(random()::text) AS title,
+--     md5(random()::text) || ' ' || md5(random()::text) AS description
+-- FROM generate_series(1, 10000);
+
+-- 直接插入 50,000 筆
+-- INSERT INTO worlds (title, description)
+-- SELECT
+--     md5(random()::text) AS title,
+--     md5(random()::text) || ' ' || md5(random()::text) AS description
+-- FROM generate_series(1, 50000);
+
+-- 直接插入 100,000 筆
+-- INSERT INTO worlds (title, description)
+-- SELECT
+--     md5(random()::text) AS title,
+--     md5(random()::text) || ' ' || md5(random()::text) AS description
+-- FROM generate_series(1, 100000);
+

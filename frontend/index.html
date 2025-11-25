@@ -194,6 +194,156 @@
             margin-bottom: 20px;
             animation: slideIn 0.3s ease-out;
         }
+
+        /* Admin Panel Styles */
+        .admin-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .admin-header h2 {
+            color: #333;
+            font-size: 1.3em;
+        }
+
+        .toggle-admin {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .toggle-admin:hover {
+            transform: scale(1.05);
+        }
+
+        .admin-content {
+            display: none;
+        }
+
+        .admin-content.active {
+            display: block;
+        }
+
+        .admin-section {
+            margin-bottom: 20px;
+        }
+
+        .admin-section h3 {
+            color: #555;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .admin-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .admin-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-generate {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-clear {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-rebuild {
+            background: #FF9800;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .admin-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .admin-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .admin-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .admin-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
     </style>
 </head>
 
@@ -202,6 +352,81 @@
         <div class="header">
             <h1>🔍 Fuzzy Search Demo</h1>
             <p>PostgreSQL pg_trgm Trigram-based Search</p>
+        </div>
+
+        <!-- Admin Panel -->
+        <div class="admin-panel">
+            <div class="admin-header">
+                <h2>⚙️ 管理面板</h2>
+                <button class="toggle-admin" onclick="toggleAdmin()">
+                    <span id="toggle-text">顯示</span>
+                </button>
+            </div>
+            <div class="admin-content" id="admin-content">
+                <!-- Data Statistics -->
+                <div class="admin-section">
+                    <h3>📊 資料統計</h3>
+                    <div class="stats-grid" id="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">總筆數</div>
+                            <div class="stat-value" id="stat-records">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">表格大小</div>
+                            <div class="stat-value" id="stat-table">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">索引大小</div>
+                            <div class="stat-value" id="stat-index">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">總大小</div>
+                            <div class="stat-value" id="stat-total">-</div>
+                        </div>
+                    </div>
+                    <button class="admin-button" onclick="refreshStats()" style="margin-top: 15px; background: #2196F3; color: white;">
+                        🔄 重新整理統計
+                    </button>
+                </div>
+
+                <!-- Data Generation -->
+                <div class="admin-section">
+                    <h3>📝 產生測試資料</h3>
+                    <div class="button-group">
+                        <button class="admin-button btn-generate" onclick="generateData(10000)">
+                            產生 1 萬筆
+                        </button>
+                        <button class="admin-button btn-generate" onclick="generateData(50000)">
+                            產生 5 萬筆
+                        </button>
+                        <button class="admin-button btn-generate" onclick="generateData(100000)">
+                            產生 10 萬筆
+                        </button>
+                        <button class="admin-button btn-generate" onclick="generateData(500000)">
+                            產生 50 萬筆
+                        </button>
+                        <button class="admin-button btn-generate" onclick="generateData(1000000)">
+                            產生 100 萬筆
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="admin-section">
+                    <h3>🗑️ 資料管理</h3>
+                    <div class="button-group">
+                        <button class="admin-button btn-clear" onclick="clearData()">
+                            清空所有資料
+                        </button>
+                        <button class="admin-button btn-rebuild" onclick="rebuildIndexes()">
+                            重建索引
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div id="admin-messages"></div>
+            </div>
         </div>
 
         <div class="search-box">
@@ -265,14 +490,22 @@
         }
 
         // Display search results
-        function displayResults(results, query) {
+        function displayResults(data, query) {
+            // Handle new response format with meta
+            const results = data.results || data;
+            const meta = data.meta || {};
+            
             if (results.length === 0) {
                 resultsDiv.innerHTML = '<div class="no-results">No results found for "' + escapeHtml(query) + '"</div>';
                 statsDiv.textContent = 'No matches found';
                 return;
             }
 
-            statsDiv.textContent = `Found ${results.length} result${results.length > 1 ? 's' : ''} for "${query}"`;
+            let statsText = `Found ${results.length} result${results.length > 1 ? 's' : ''} for "${query}"`;
+            if (meta.queryTimeMs !== undefined) {
+                statsText += ` (${meta.queryTimeMs}ms)`;
+            }
+            statsDiv.textContent = statsText;
 
             const html = results.map(result => {
                 const truncatedDesc = truncateText(result.description, 200);
@@ -355,6 +588,176 @@
 
         // Focus on input on load
         keywordInput.focus();
+
+        // ============================================================================
+        // Admin Panel Functions
+        // ============================================================================
+
+        let adminOpen = false;
+
+        // Toggle admin panel
+        function toggleAdmin() {
+            adminOpen = !adminOpen;
+            const content = document.getElementById('admin-content');
+            const toggleText = document.getElementById('toggle-text');
+            
+            if (adminOpen) {
+                content.classList.add('active');
+                toggleText.textContent = '隱藏';
+                refreshStats();
+            } else {
+                content.classList.remove('active');
+                toggleText.textContent = '顯示';
+            }
+        }
+
+        // Show admin message
+        function showAdminMessage(message, type = 'info') {
+            const messagesDiv = document.getElementById('admin-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = `admin-message ${type}`;
+            messageEl.textContent = message;
+            messagesDiv.innerHTML = '';
+            messagesDiv.appendChild(messageEl);
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageEl.style.opacity = '0';
+                setTimeout(() => messageEl.remove(), 300);
+            }, 5000);
+        }
+
+        // Disable all admin buttons
+        function disableAdminButtons(disabled) {
+            const buttons = document.querySelectorAll('.admin-button');
+            buttons.forEach(btn => btn.disabled = disabled);
+        }
+
+        // Refresh statistics
+        async function refreshStats() {
+            try {
+                const response = await fetch('/admin/data/stats');
+                if (!response.ok) throw new Error('Failed to fetch stats');
+                
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('stat-records').textContent = data.data.totalRecords.toLocaleString();
+                    document.getElementById('stat-table').textContent = data.data.tableSize;
+                    document.getElementById('stat-index').textContent = data.data.indexSize;
+                    document.getElementById('stat-total').textContent = data.data.totalSize;
+                }
+            } catch (error) {
+                console.error('Stats error:', error);
+                showAdminMessage('無法取得統計資料', 'error');
+            }
+        }
+
+        // Generate test data
+        async function generateData(count) {
+            if (!confirm(`確定要產生 ${count.toLocaleString()} 筆測試資料嗎？`)) {
+                return;
+            }
+
+            disableAdminButtons(true);
+            showAdminMessage(`正在產生 ${count.toLocaleString()} 筆資料...`, 'info');
+
+            try {
+                const response = await fetch('/admin/data/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count })
+                });
+
+                if (!response.ok) throw new Error('Failed to generate data');
+                
+                const data = await response.json();
+                if (data.success) {
+                    showAdminMessage(
+                        `✅ 成功產生 ${data.data.insertedCount.toLocaleString()} 筆資料 (耗時: ${data.data.executionTimeMs.toFixed(2)}ms)`,
+                        'success'
+                    );
+                    await refreshStats();
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Generate error:', error);
+                showAdminMessage(`❌ 產生資料失敗: ${error.message}`, 'error');
+            } finally {
+                disableAdminButtons(false);
+            }
+        }
+
+        // Clear all data
+        async function clearData() {
+            if (!confirm('⚠️ 確定要清空所有資料嗎？此操作無法復原！')) {
+                return;
+            }
+
+            disableAdminButtons(true);
+            showAdminMessage('正在清空資料...', 'info');
+
+            try {
+                const response = await fetch('/admin/data/clear', {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) throw new Error('Failed to clear data');
+                
+                const data = await response.json();
+                if (data.success) {
+                    showAdminMessage(
+                        `✅ 成功刪除 ${data.data.deletedCount.toLocaleString()} 筆資料 (耗時: ${data.data.executionTimeMs.toFixed(2)}ms)`,
+                        'success'
+                    );
+                    await refreshStats();
+                    showEmptyState();
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Clear error:', error);
+                showAdminMessage(`❌ 清空資料失敗: ${error.message}`, 'error');
+            } finally {
+                disableAdminButtons(false);
+            }
+        }
+
+        // Rebuild indexes
+        async function rebuildIndexes() {
+            if (!confirm('確定要重建索引嗎？這可能需要一些時間。')) {
+                return;
+            }
+
+            disableAdminButtons(true);
+            showAdminMessage('正在重建索引...', 'info');
+
+            try {
+                const response = await fetch('/admin/data/rebuild-indexes', {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Failed to rebuild indexes');
+                
+                const data = await response.json();
+                if (data.success) {
+                    showAdminMessage(
+                        `✅ ${data.data.status} (耗時: ${data.data.executionTimeMs.toFixed(2)}ms)`,
+                        'success'
+                    );
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Rebuild error:', error);
+                showAdminMessage(`❌ 重建索引失敗: ${error.message}`, 'error');
+            } finally {
+                disableAdminButtons(false);
+            }
+        }
+
+        // Load initial stats on page load
+        refreshStats();
     </script>
 </body>
 

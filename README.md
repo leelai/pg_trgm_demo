@@ -1,6 +1,32 @@
 # pg_trgm Fuzzy Search Demo
 
-完整的 PostgreSQL pg_trgm 模糊搜尋示範專案，包含資料爬取、後端 API 和前端介面。
+完整的 PostgreSQL pg_trgm 模糊搜尋示範專案，包含資料爬取、後端 API、前端介面和**效能測試系統**。
+
+## 🆕 新功能: 效能測試系統
+
+測試不同資料量對搜尋效能的影響，使用 k6 進行專業負載測試。
+
+**快速開始:**
+```bash
+# 安裝 k6
+brew install k6  # macOS
+
+# 執行自動化測試 (測試 1萬、5萬、10萬筆)
+chmod +x scripts/run-performance-tests.sh
+./scripts/run-performance-tests.sh
+```
+
+**或使用前端管理面板:**
+- 開啟 http://localhost:3000
+- 點擊 "⚙️ 管理面板" → "顯示"
+- 一鍵產生測試資料並查看統計
+
+**詳細說明:**
+- 📖 [效能測試快速指南](./PERFORMANCE_TEST_QUICKSTART.md)
+- 📚 [完整效能測試文件](./PERFORMANCE_TEST.md)
+- 📋 [實作總結](./IMPLEMENTATION_SUMMARY.md)
+- 🔍 [索引說明文件](./INDEX_INFO.md)
+- 🐛 [疑難排解指南](./TROUBLESHOOTING.md)
 
 ## 🚀 快速開始
 
@@ -24,18 +50,178 @@ docker compose up -d --build
 ### 2. 安裝 Python 依賴並執行資料填充
 
 ```bash
+# 建立虛擬環境（建議）
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 安裝依賴
 pip3 install -r requirements.txt
+
+# 執行資料填充（預設 10,000 筆）
 python3 seed.py
 ```
 
 > **重要！** 執行 seed.py 前，請確保你沒有本機的 PostgreSQL 服務在 port 5432 運行，否則會連接到錯誤的資料庫。
 
-此腳本會使用多種策略抓取資料：
-1. 從多個主題分類（50+ 主題）使用分頁抓取
-2. 從熱門作者的作品集抓取
-3. 從不同年代的出版品抓取
+#### 資料來源策略
 
-**預期會插入約 10,000 筆書籍資料**（執行時間約 5-10 分鐘）。
+此腳本會從**六個**高品質來源抓取資料：
+1. **ArXiv 學術論文** (25%) - 電腦科學、物理、數學等領域的學術摘要
+2. **Wikipedia 條目** (25%) - 各種主題的百科全書條目
+3. **Google Books** (20%) - 各類書籍的詳細簡介
+4. **Quotable.io 名言** (15%) - 名人勵志名言 🆕
+5. **UselessFacts 冷知識** (10%) - 有趣的隨機事實 🆕
+6. **ZenQuotes 名言** (5%) - 額外的名言來源 🆕
+
+#### 命令列參數
+
+`seed.py` 支援靈活的參數配置，無需修改程式碼：
+
+```bash
+# 查看所有參數說明
+python3 seed.py --help
+
+# 抓取 10,000 筆資料（預設）
+python3 seed.py
+
+# 抓取 1,000 筆資料（快速測試）
+python3 seed.py --total 1000
+
+# 抓取 100 筆資料（極速測試）
+python3 seed.py --total 100
+
+# 自訂各來源數量（完整配置）
+python3 seed.py --arxiv 2500 --wikipedia 2500 --books 2000 \
+                --quotable 1500 --facts 1000 --zenquotes 500
+
+# 只抓取名言和冷知識（適合短文測試）
+python3 seed.py --quotable 500 --facts 500 --zenquotes 100 \
+                --arxiv 0 --wikipedia 0 --books 0
+
+# 只抓取 ArXiv 論文（適合學術領域測試）
+python3 seed.py --arxiv 5000 --wikipedia 0 --books 0
+
+# 只抓取 Wikipedia 條目（適合百科內容測試）
+python3 seed.py --arxiv 0 --wikipedia 5000 --books 0
+
+# 使用非並行模式（依序抓取，較慢但更穩定）
+python3 seed.py --no-parallel
+
+# 使用非並行模式抓取 1000 筆
+python3 seed.py --total 1000 --no-parallel
+
+# 跳過 Wikipedia 暢銷書清單
+python3 seed.py --skip-wiki-bestsellers
+```
+
+**預設會插入約 10,000 筆資料**（執行時間約 25-30 分鐘，包含新增的名言和冷知識來源）。使用 `--total 1000` 可縮短至約 3-5 分鐘。
+
+#### 新增資料來源 🆕
+
+為了增加資料多樣性和測試覆蓋範圍，我們新增了三個免費公開 API：
+
+**1. Quotable.io - 名人名言**
+- 提供高品質的勵志名言和哲理語錄
+- 包含作者資訊
+- 內容簡短（平均 50-100 字元），適合測試短文搜尋
+- 免費，無需 API key
+
+**2. UselessFacts - 有趣冷知識**
+- 提供各種有趣的隨機事實和冷知識
+- 內容多樣化，涵蓋科學、歷史、娛樂等領域
+- 文字長度適中（平均 50-100 字元）
+- 免費，無需 API key
+
+**3. ZenQuotes - 額外名言來源**
+- 補充的名言來源，提供更多元的引言內容
+- 品質優良但有 rate limit（每 30 秒 5 次請求）
+- 適合少量使用
+- 免費，無需 API key
+
+**資料長度分布**：
+- 短文（20-100 字元）：Quotable、UselessFacts、ZenQuotes
+- 中文（100-300 字元）：Google Books、Wikipedia 摘要
+- 長文（300+ 字元）：ArXiv 學術論文
+
+這樣的組合可以更全面地測試 pg_trgm 在不同長度和類型文字上的模糊搜尋效果。
+
+#### 執行模式選擇 🆕
+
+`seed.py` 支援兩種執行模式：
+
+**1. 並行模式（預設，推薦）**
+```bash
+python3 seed.py --total 1000
+# 或明確指定
+python3 seed.py --total 1000 --parallel
+```
+- ⚡ **速度快**：所有資料來源同時抓取
+- 🚀 **效率高**：充分利用網路頻寬
+- ⏱️ **時間短**：10,000 筆約 25-30 分鐘
+- 📊 **適用場景**：網路穩定、一般使用
+
+**2. 非並行模式（依序執行）**
+```bash
+python3 seed.py --total 1000 --no-parallel
+```
+- 🐢 **速度較慢**：資料來源依序抓取
+- 💚 **資源友善**：一次只有一個連線
+- 🔍 **進度清晰**：依序顯示，易於追蹤
+- 🛠️ **適用場景**：網路不穩定、除錯、系統資源有限
+
+**模式比較**：
+
+| 特性 | 並行模式 | 非並行模式 |
+|-----|---------|-----------|
+| 速度 | ⚡ 快（25-30 分鐘/10k） | 🐢 慢（60-90 分鐘/10k） |
+| 資源 | 🔥 高（7 個並行連線） | 💚 低（1 個連線） |
+| 穩定性 | ⚠️ 中 | ✅ 高 |
+| 進度顯示 | 交錯顯示 | 清晰依序 |
+| 除錯 | 較困難 | 容易 |
+
+#### 效能優化
+
+資料抓取腳本已經過多重優化，提供極致效能：
+
+1. **來源級別平行處理** 🚀🚀🚀 (NEW!)
+   - **所有資料來源同時並行抓取**
+   - ArXiv、Wikipedia、Google Books、Quotable、UselessFacts、ZenQuotes 六個來源同時執行
+   - 不再依序等待，充分利用網路頻寬
+   - **額外提升 2-3 倍速度**
+
+2. **多執行緒平行處理** 🚀
+   - ArXiv: 5 個平行 workers 同時抓取不同批次
+   - Wikipedia: **30 個平行 workers** 同時請求（已優化）
+   - Google Books: 5 個平行 workers 同時抓取不同頁面
+   - Quotable、UselessFacts、ZenQuotes: 單執行緒（API 限制）
+
+3. **批次 API 查詢** ⚡
+   - Wikipedia 暢銷書：使用批次 API，一次查詢 50 本書（vs 逐一查詢 51 次）
+   - Wikipedia 隨機條目：**超級批次模式**
+     - 使用 `list=random` 一次取得 500 個頁面 ID
+     - 再分 10 批（每批 50 個）查詢內容
+     - **每個超級批次獲得 ~180-200 篇文章**（vs 舊版 15-18 篇）
+     - **效率提升 10-12 倍**
+
+4. **過濾條件優化**
+   - 放寬描述長度要求：50 字（vs 舊版 100 字）
+   - 提升有效文章比例 ~15%
+
+5. **實測效能數據** ⚡⚡⚡
+   - 500 筆資料：~11 秒
+   - 2,000 筆資料（純 Wikipedia）：~40 秒
+   - 5,000 筆資料（混合來源）：**~38 秒** 🔥
+   - 10,000 筆資料（混合來源）：**~53 秒** 🔥🔥🔥
+   - 相比優化前提升 **10-15 倍**
+
+#### 進度提示說明
+
+執行時會顯示詳細的進度資訊，讓您清楚了解當前狀態：
+
+- **ArXiv 抓取**: 顯示平行處理進度和每個類別的貢獻
+- **Wikipedia 抓取**: 顯示完成的請求數和文章收集進度
+- **Google Books 抓取**: 顯示每個主題的平行抓取結果
+- **資料庫寫入**: 顯示批次插入進度和索引建立狀態
 
 ### 3. 開啟瀏覽器測試
 
@@ -46,6 +232,40 @@ python3 seed.py
 - `dune` → Dune
 - `hobbit` → The Hobbit
 - `foundation` → Foundation
+
+## 💾 資料庫備份與還原
+
+專案提供了方便的腳本來備份和還原資料庫：
+
+### 匯出資料庫
+
+```bash
+./dump_data.sh
+```
+
+這會：
+- 自動建立 `backups/` 目錄
+- 匯出完整的資料庫結構和資料
+- 檔案名稱包含時間戳記（例如：`testdb_dump_20251125_174237.sql`）
+- 顯示資料筆數和檔案大小
+
+### 匯入資料庫
+
+```bash
+# 查看可用的備份檔案
+./restore_data.sh
+
+# 從備份檔案還原
+./restore_data.sh backups/testdb_dump_20251125_174237.sql
+```
+
+這會：
+- 刪除現有的 `testdb` 資料庫
+- 重新建立資料庫
+- 匯入備份資料
+- 顯示匯入結果
+
+**注意**：匯入操作會覆蓋現有資料，請謹慎使用！
 
 ## 📁 專案結構
 
