@@ -22,11 +22,11 @@ chmod +x scripts/run-performance-tests.sh
 - 一鍵產生測試資料並查看統計
 
 **詳細說明:**
-- 📖 [效能測試快速指南](./PERFORMANCE_TEST_QUICKSTART.md)
-- 📚 [完整效能測試文件](./PERFORMANCE_TEST.md)
-- 📋 [實作總結](./IMPLEMENTATION_SUMMARY.md)
-- 🔍 [索引說明文件](./INDEX_INFO.md)
-- 🐛 [疑難排解指南](./TROUBLESHOOTING.md)
+- 📖 [效能測試快速指南](docs/PERFORMANCE_TEST_QUICKSTART.md)
+- 📚 [完整效能測試文件](docs/PERFORMANCE_TEST.md)
+- 📋 [實作總結](docs/IMPLEMENTATION_SUMMARY.md)
+- 🔍 [索引說明文件](docs/INDEX_INFO.md)
+- 🐛 [疑難排解指南](docs/TROUBLESHOOTING.md)
 
 ## 🚀 快速開始
 
@@ -58,10 +58,10 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip3 install -r requirements.txt
 
 # 執行資料填充（預設 10,000 筆）
-python3 seed.py
+python3 scripts/seed.py
 ```
 
-> **重要！** 執行 seed.py 前，請確保你沒有本機的 PostgreSQL 服務在 port 5432 運行，否則會連接到錯誤的資料庫。
+> **重要！** 執行 scripts/seed.py 前，請確保你沒有本機的 PostgreSQL 服務在 port 5432 運行，否則會連接到錯誤的資料庫。
 
 #### 資料來源策略
 
@@ -75,43 +75,43 @@ python3 seed.py
 
 #### 命令列參數
 
-`seed.py` 支援靈活的參數配置，無需修改程式碼：
+`scripts/seed.py` 支援靈活的參數配置，無需修改程式碼：
 
 ```bash
 # 查看所有參數說明
-python3 seed.py --help
+python3 scripts/seed.py --help
 
 # 抓取 10,000 筆資料（預設）
-python3 seed.py
+python3 scripts/seed.py
 
 # 抓取 1,000 筆資料（快速測試）
-python3 seed.py --total 1000
+python3 scripts/seed.py --total 1000
 
 # 抓取 100 筆資料（極速測試）
-python3 seed.py --total 100
+python3 scripts/seed.py --total 100
 
 # 自訂各來源數量（完整配置）
-python3 seed.py --arxiv 2500 --wikipedia 2500 --books 2000 \
+python3 scripts/seed.py --arxiv 2500 --wikipedia 2500 --books 2000 \
                 --quotable 1500 --facts 1000 --zenquotes 500
 
 # 只抓取名言和冷知識（適合短文測試）
-python3 seed.py --quotable 500 --facts 500 --zenquotes 100 \
+python3 scripts/seed.py --quotable 500 --facts 500 --zenquotes 100 \
                 --arxiv 0 --wikipedia 0 --books 0
 
 # 只抓取 ArXiv 論文（適合學術領域測試）
-python3 seed.py --arxiv 5000 --wikipedia 0 --books 0
+python3 scripts/seed.py --arxiv 5000 --wikipedia 0 --books 0
 
 # 只抓取 Wikipedia 條目（適合百科內容測試）
-python3 seed.py --arxiv 0 --wikipedia 5000 --books 0
+python3 scripts/seed.py --arxiv 0 --wikipedia 5000 --books 0
 
 # 使用非並行模式（依序抓取，較慢但更穩定）
-python3 seed.py --no-parallel
+python3 scripts/seed.py --no-parallel
 
 # 使用非並行模式抓取 1000 筆
-python3 seed.py --total 1000 --no-parallel
+python3 scripts/seed.py --total 1000 --no-parallel
 
 # 跳過 Wikipedia 暢銷書清單
-python3 seed.py --skip-wiki-bestsellers
+python3 scripts/seed.py --skip-wiki-bestsellers
 ```
 
 **預設會插入約 10,000 筆資料**（執行時間約 25-30 分鐘，包含新增的名言和冷知識來源）。使用 `--total 1000` 可縮短至約 3-5 分鐘。
@@ -147,13 +147,13 @@ python3 seed.py --skip-wiki-bestsellers
 
 #### 執行模式選擇 🆕
 
-`seed.py` 支援兩種執行模式：
+`scripts/seed.py` 支援兩種執行模式：
 
 **1. 並行模式（預設，推薦）**
 ```bash
-python3 seed.py --total 1000
+python3 scripts/seed.py --total 1000
 # 或明確指定
-python3 seed.py --total 1000 --parallel
+python3 scripts/seed.py --total 1000 --parallel
 ```
 - ⚡ **速度快**：所有資料來源同時抓取
 - 🚀 **效率高**：充分利用網路頻寬
@@ -162,7 +162,7 @@ python3 seed.py --total 1000 --parallel
 
 **2. 非並行模式（依序執行）**
 ```bash
-python3 seed.py --total 1000 --no-parallel
+python3 scripts/seed.py --total 1000 --no-parallel
 ```
 - 🐢 **速度較慢**：資料來源依序抓取
 - 💚 **資源友善**：一次只有一個連線
@@ -274,7 +274,13 @@ python3 seed.py --total 1000 --no-parallel
 ├── docker-compose.yml      # Docker Compose 配置（PostgreSQL + Backend）
 ├── init.sql                # 資料庫初始化（建立 pg_trgm extension 與 table）
 ├── requirements.txt        # Python 依賴清單
-├── seed.py                 # 資料爬取與填充腳本
+├── scripts/
+│   ├── seed.py                 # 資料爬取與填充腳本
+│   ├── test_apis.py            # API 測試腳本
+│   ├── test_apis_v2.py         # API 測試腳本 v2
+│   ├── test_fuzzy_tolerance.py # 模糊容錯測試
+│   ├── visualize_k6_results.py # 效能測試視覺化
+│   └── ...                     # 其他腳本
 ├── backend/
 │   ├── Dockerfile          # Backend Docker 映像配置
 │   ├── package.json        # Node.js 依賴
@@ -368,7 +374,7 @@ curl http://localhost:3000/health
 
 ## ⚠️ 注意事項
 
-- seed.py 會清空現有資料後重新插入
+- scripts/seed.py 會清空現有資料後重新插入
 - 爬蟲腳本包含延遲（0.3-0.5 秒）以避免對目標網站造成負擔
 - 確保 5432 port 未被佔用
 - 首次執行 `npm install` 需要一些時間下載依賴
@@ -384,7 +390,7 @@ docker ps
 docker logs pg_trgm_demo
 ```
 
-### seed.py 失敗
+### scripts/seed.py 失敗
 - 檢查網路連線
 - 確認 PostgreSQL 已啟動
 - 確認已安裝所有 Python 依賴
@@ -403,6 +409,29 @@ lsof -i :3000
 
 # 修改 docker-compose.yml 中的端口映射
 ```
+
+## 📚 文件導覽
+
+### 效能測試相關
+- 📖 [效能測試快速指南](docs/PERFORMANCE_TEST_QUICKSTART.md) - 快速上手效能測試
+- 📚 [完整效能測試文件](docs/PERFORMANCE_TEST.md) - 詳細的效能測試說明
+- 📋 [實作總結](docs/IMPLEMENTATION_SUMMARY.md) - 系統實作總覽
+
+### 功能說明
+- 🔍 [索引說明文件](docs/INDEX_INFO.md) - PostgreSQL 索引詳解
+- 🎯 [模糊容錯實作](docs/FUZZY_TOLERANCE_IMPLEMENTATION.md) - 模糊搜尋容錯機制
+- ⏱️ [時間記錄功能](docs/TIMING_FEATURE.md) - 資料抓取時間分析
+- 🚀 [並行模式指南](docs/PARALLEL_MODE_GUIDE.md) - 並行執行模式說明
+- 📊 [並行模式總結](docs/PARALLEL_MODE_SUMMARY.md) - 並行模式效能比較
+
+### 資料來源與整合
+- 🔗 [API 整合總結](docs/INTEGRATION_SUMMARY.md) - 資料來源 API 整合說明
+- 📝 [快速參考卡](docs/QUICK_REFERENCE.md) - seed.py 資料來源快速參考
+- 🧪 [API 測試報告](docs/API_TEST_REPORT.md) - API 測試結果與評估
+
+### 其他文件
+- ✅ [實作完成說明](docs/IMPLEMENTATION_COMPLETE.md) - 專案完成紀錄
+- 🐛 [疑難排解指南](docs/TROUBLESHOOTING.md) - 常見問題與解決方案
 
 ## 📄 授權
 

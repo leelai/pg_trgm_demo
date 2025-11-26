@@ -17,9 +17,7 @@ DB_NAME="testdb"
 DB_USER="postgres"
 DB_PASSWORD="password"
 
-# 匯出檔案名稱（包含時間戳記）
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-DUMP_FILE="testdb_dump_${TIMESTAMP}.sql"
+# 備份目錄
 DUMP_DIR="backups"
 
 echo -e "${BLUE}============================================================${NC}"
@@ -45,6 +43,11 @@ echo -e "${GREEN}✓ Docker 容器運行中${NC}"
 echo -e "${GREEN}→ 檢查資料庫...${NC}"
 RECORD_COUNT=$(docker exec pg_trgm_demo psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM worlds" | xargs)
 echo -e "${GREEN}→ 資料表 'worlds' 共有 ${RECORD_COUNT} 筆資料${NC}"
+
+# 匯出檔案名稱（包含時間戳記和資料筆數）
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+DUMP_FILE="testdb_dump_${RECORD_COUNT}rows_${TIMESTAMP}.sql"
+echo -e "${GREEN}→ 備份檔名: ${DUMP_FILE}${NC}"
 
 # 匯出資料庫（使用 Docker 容器內的 pg_dump 避免版本問題）
 echo -e "${GREEN}→ 開始匯出資料庫...${NC}"

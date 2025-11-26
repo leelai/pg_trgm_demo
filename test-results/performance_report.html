@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pg_trgm 效能測試報告</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            color: #333;
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p {
+            font-size: 1.2em;
+            color: #666;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .summary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .summary-card h3 {
+            font-size: 0.9em;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .summary-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .summary-card .subtitle {
+            font-size: 0.9em;
+            color: #999;
+        }
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .chart-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.8em;
+        }
+        .chart-container img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+        .table-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        .table-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.8em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .metric-value {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        .good {
+            color: #4CAF50;
+        }
+        .warning {
+            color: #FF9800;
+        }
+        .bad {
+            color: #F44336;
+        }
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            padding: 20px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 pg_trgm 效能測試報告</h1>
+            <p>資料量對搜尋效能的影響分析</p>
+        </div>
+        
+        <div class="summary">
+
+            <div class="summary-card">
+                <h3>測試資料量範圍</h3>
+                <div class="value">6</div>
+                <div class="subtitle">100 - 50,000 筆</div>
+            </div>
+            <div class="summary-card">
+                <h3>效能變化率</h3>
+                <div class="value bad">+5297.1%</div>
+                <div class="subtitle">平均回應時間變化</div>
+            </div>
+            <div class="summary-card">
+                <h3>最佳效能</h3>
+                <div class="value good">9.8ms</div>
+                <div class="subtitle">100 筆資料</div>
+            </div>
+            <div class="summary-card">
+                <h3>最大負載</h3>
+                <div class="value bad">529.6ms</div>
+                <div class="subtitle">50,000 筆資料</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>📈 效能比較圖表</h2>
+            <img src="performance_comparison.png" alt="效能比較圖表">
+        </div>
+        
+        <div class="table-container">
+            <h2>📋 詳細數據</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>資料量</th>
+                        <th>平均回應時間</th>
+                        <th>p50 (中位數)</th>
+                        <th>p95</th>
+                        <th>p99</th>
+                        <th>平均查詢時間</th>
+                        <th>總請求數</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td><strong>100 筆</strong></td>
+                        <td><span class="metric-value good">9.81ms</span></td>
+                        <td>9.16ms</td>
+                        <td>16.79ms</td>
+                        <td>22.76ms</td>
+                        <td>4.58ms</td>
+                        <td>744</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>500 筆</strong></td>
+                        <td><span class="metric-value good">15.21ms</span></td>
+                        <td>14.34ms</td>
+                        <td>23.93ms</td>
+                        <td>28.96ms</td>
+                        <td>10.75ms</td>
+                        <td>730</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>1,000 筆</strong></td>
+                        <td><span class="metric-value good">21.35ms</span></td>
+                        <td>20.42ms</td>
+                        <td>32.07ms</td>
+                        <td>36.14ms</td>
+                        <td>17.51ms</td>
+                        <td>731</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>5,000 筆</strong></td>
+                        <td><span class="metric-value good">60.29ms</span></td>
+                        <td>57.44ms</td>
+                        <td>78.21ms</td>
+                        <td>89.04ms</td>
+                        <td>57.41ms</td>
+                        <td>701</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>10,000 筆</strong></td>
+                        <td><span class="metric-value warning">115.19ms</span></td>
+                        <td>112.84ms</td>
+                        <td>138.23ms</td>
+                        <td>179.59ms</td>
+                        <td>112.36ms</td>
+                        <td>686</td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>50,000 筆</strong></td>
+                        <td><span class="metric-value bad">529.56ms</span></td>
+                        <td>517.87ms</td>
+                        <td>595.68ms</td>
+                        <td>902.79ms</td>
+                        <td>526.60ms</td>
+                        <td>518</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <p>🚀 Generated by pg_trgm Performance Test Suite</p>
+            <p>使用 k6 負載測試工具 | PostgreSQL pg_trgm 模糊搜尋</p>
+        </div>
+    </div>
+</body>
+</html>
