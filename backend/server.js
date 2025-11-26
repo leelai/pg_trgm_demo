@@ -19,6 +19,13 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
+// 設定 pg_trgm 相似度閾值（會話級別）
+// 這確保每個連線都使用相同的模糊搜尋閾值
+pool.on('connect', (client) => {
+  client.query('SET pg_trgm.similarity_threshold = 0.3');
+  client.query('SET pg_trgm.word_similarity_threshold = 0.6');
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -177,62 +184,75 @@ app.get('/search', async (req, res) => {
     const startTime = Date.now();
     
     // Combined fuzzy search query using UNION ALL
-    // This implements three types of fuzzy matching:
-    // 1. Prefix autocomplete (highest priority)
-    // 2. Contains keyword (medium priority)
-    // 3. Similarity-based fuzzy match (flexible matching)
+    // This implements four types of fuzzy matching with fault tolerance:
+    // 1. Exact prefix match (highest priority) - e.g., "harri" finds "Harrison"
+    // 2. Trigram similarity match (%) - e.g., "harri" finds "Harry" (fault tolerant!)
+    // 3. Word similarity match (<<%>) - e.g., "harri" finds "Harold Potter"
+    // 4. Contains match (fallback) - e.g., "harri" finds "Harriett"
     
     const sql = `
       WITH search_results AS (
-        -- 1. Prefix autocomplete: exact prefix match in title
-        -- Also includes weighted description similarity
+        -- 1. Exact prefix match (最高優先級，精確匹配)
         SELECT 
           id,
-          title, 
+          title,
           description,
-          (similarity(title, $1) * 0.7 + similarity(COALESCE(description, ''), $1) * 0.3) + 0.5 AS sim,
-          'prefix' AS match_type
+          similarity(title, $1) + 0.5 AS sim,
+          'exact_prefix' AS match_type
         FROM worlds
         WHERE title ILIKE $1 || '%'
-        
+
         UNION ALL
-        
-        -- 2. Contains keyword: substring match in title
-        -- Also includes weighted description similarity
+
+        -- 2. Trigram similarity match (容錯匹配，使用 % 操作符)
+        -- 這會找到相似但不完全相同的字串，例如 "harri" 可以找到 "Harry"
         SELECT 
           id,
-          title, 
+          title,
           description,
-          (similarity(title, $1) * 0.7 + similarity(COALESCE(description, ''), $1) * 0.3) + 0.3 AS sim,
+          similarity(title, $1) + 0.3 AS sim,
+          'similarity' AS match_type
+        FROM worlds
+        WHERE title % $1
+          AND NOT (title ILIKE $1 || '%')
+
+        UNION ALL
+
+        -- 3. Word similarity match (部分相似匹配，使用 <<% 操作符)
+        -- 適合搜尋詞出現在較長字串中的情況
+        SELECT 
+          id,
+          title,
+          description,
+          word_similarity($1, title) + 0.2 AS sim,
+          'word_similarity' AS match_type
+        FROM worlds
+        WHERE $1 <<% title
+          AND NOT (title ILIKE $1 || '%')
+          AND NOT (title % $1)
+
+        UNION ALL
+
+        -- 4. Contains match (包含匹配，優先級較低)
+        SELECT 
+          id,
+          title,
+          description,
+          similarity(title, $1) + 0.1 AS sim,
           'contains' AS match_type
         FROM worlds
         WHERE title ILIKE '%' || $1 || '%'
-          AND NOT (title ILIKE $1 || '%')  -- Exclude prefix matches
-        
-        UNION ALL
-        
-        -- 3. Fuzzy similarity: trigram-based matching on both title and description
-        -- Weighted combination: title 70%, description 30%
-        SELECT 
-          id,
-          title, 
-          description,
-          (similarity(title, $1) * 0.7 + similarity(COALESCE(description, ''), $1) * 0.3) AS sim,
-          'fuzzy' AS match_type
-        FROM worlds
-        WHERE (title % $1 OR COALESCE(description, '') % $1)  -- Match either field
-          AND NOT (title ILIKE '%' || $1 || '%')  -- Exclude exact substring matches in title
+          AND NOT (title ILIKE $1 || '%')
+          AND NOT (title % $1)
+          AND NOT ($1 <<% title)
       )
       SELECT DISTINCT ON (id)
-        id,
-        title,
-        description,
-        sim,
-        match_type
+        id, title, description, sim, match_type
       FROM search_results
+      WHERE sim > 0.2
       ORDER BY id, sim DESC
-      LIMIT 20
-    `;
+      LIMIT 20;
+      `;
     
     const result = await pool.query(sql, [query]);
     

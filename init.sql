@@ -1,6 +1,12 @@
 -- Enable pg_trgm extension for trigram-based fuzzy search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+-- 設定 pg_trgm 相似度閾值
+-- similarity_threshold: 用於 % 操作符，預設 0.3（範圍 0-1，越小越寬鬆）
+-- word_similarity_threshold: 用於 <<% 操作符，預設 0.6
+ALTER DATABASE testdb SET pg_trgm.similarity_threshold = 0.3;
+ALTER DATABASE testdb SET pg_trgm.word_similarity_threshold = 0.6;
+
 -- Create worlds table to store book data
 CREATE TABLE IF NOT EXISTS worlds (
     id SERIAL PRIMARY KEY,
