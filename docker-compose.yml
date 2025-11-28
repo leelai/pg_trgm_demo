@@ -41,5 +41,26 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  backend-go:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    container_name: pg_trgm_backend_go
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: testdb
+      DB_USER: postgres
+      DB_PASSWORD: password
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./frontend:/app/../frontend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:

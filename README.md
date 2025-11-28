@@ -1,6 +1,30 @@
 # pg_trgm Fuzzy Search Demo
 
-完整的 PostgreSQL pg_trgm 模糊搜尋示範專案，包含資料爬取、後端 API、前端介面和**效能測試系統**。
+完整的 PostgreSQL pg_trgm 模糊搜尋示範專案，包含資料爬取、**雙 Backend 架構**（Node.js + Go）、前端介面和**效能測試系統**。
+
+## 🆕 新功能: 雙 Backend 支援
+
+現在支援兩種 backend 實作：
+- **Node.js** (Express.js + node-postgres) - Port 3000
+- **Go** (Gin + GORM) - Port 3001
+
+前端提供 **一鍵切換** 功能，可以即時在兩個 backend 之間切換，比較效能差異！
+
+**快速開始：**
+```bash
+# 啟動所有服務（包含兩個 backend）
+docker compose up -d --build
+
+# 開啟瀏覽器
+open http://localhost:3000  # 或 http://localhost:3001
+
+# 使用頁面上方的 Toggle 按鈕切換 backend
+```
+
+**詳細說明：**
+- 🚀 [Go Backend 快速開始](QUICKSTART_GO.md)
+- 📖 [Go Backend 使用指南](GO_BACKEND_GUIDE.md)
+- 📋 [實作完成報告](IMPLEMENTATION_COMPLETE_GO.md)
 
 ## 🆕 新功能: 效能測試系統
 
@@ -43,7 +67,8 @@ docker compose up -d --build
 
 這會自動啟動：
 - PostgreSQL 16 資料庫（port 5432）
-- Express.js 後端伺服器（port 3000）
+- Node.js 後端伺服器（port 3000）
+- Go 後端伺服器（port 3001）
 
 等待約 10-15 秒讓所有服務完全啟動。
 
@@ -225,7 +250,12 @@ python3 scripts/seed.py --total 1000 --no-parallel
 
 ### 3. 開啟瀏覽器測試
 
-在瀏覽器開啟 http://localhost:3000，你會看到一個搜尋介面。
+在瀏覽器開啟 http://localhost:3000 或 http://localhost:3001，你會看到一個搜尋介面。
+
+**使用 Backend Toggle 切換：**
+- 頁面上方有 Toggle 按鈕可以切換 Node.js 和 Go backend
+- 切換時會自動重新執行搜尋
+- 可以比較兩種 backend 的效能差異
 
 試著輸入以下關鍵字測試模糊搜尋：
 - `dracula` → Dracula
@@ -271,7 +301,7 @@ python3 scripts/seed.py --total 1000 --no-parallel
 
 ```
 .
-├── docker-compose.yml      # Docker Compose 配置（PostgreSQL + Backend）
+├── docker-compose.yml      # Docker Compose 配置（PostgreSQL + 雙 Backend）
 ├── init.sql                # 資料庫初始化（建立 pg_trgm extension 與 table）
 ├── requirements.txt        # Python 依賴清單
 ├── scripts/
@@ -281,12 +311,19 @@ python3 scripts/seed.py --total 1000 --no-parallel
 │   ├── test_fuzzy_tolerance.py # 模糊容錯測試
 │   ├── visualize_k6_results.py # 效能測試視覺化
 │   └── ...                     # 其他腳本
-├── backend/
+├── backend/                # Node.js Backend (port 3000)
 │   ├── Dockerfile          # Backend Docker 映像配置
 │   ├── package.json        # Node.js 依賴
 │   └── server.js           # Express.js API 伺服器
+├── backend-go/             # Go Backend (port 3001) 🆕
+│   ├── Dockerfile          # Go Docker 映像配置
+│   ├── go.mod              # Go 依賴
+│   ├── main.go             # 主程式
+│   ├── config/             # 資料庫配置
+│   ├── models/             # 資料模型
+│   └── handlers/           # API 處理函數
 └── frontend/
-    └── index.html          # 搜尋介面
+    └── index.html          # 搜尋介面（支援 Backend 切換）
 ```
 
 ## 🔍 模糊搜尋機制
@@ -360,8 +397,10 @@ curl http://localhost:3000/health
 ## 📦 技術堆疊
 
 - **資料庫**: PostgreSQL 16 + pg_trgm extension
-- **後端**: Express.js + node-postgres
-- **前端**: Vanilla HTML/CSS/JavaScript
+- **後端**: 
+  - Node.js: Express.js + node-postgres (port 3000)
+  - Go: Gin + GORM (port 3001)
+- **前端**: Vanilla HTML/CSS/JavaScript（支援 Backend 切換）
 - **資料來源**: Wikipedia + OpenLibrary API
 - **容器化**: Docker Compose
 

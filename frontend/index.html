@@ -41,6 +41,57 @@
             opacity: 0.9;
         }
 
+        /* Backend Toggle Styles */
+        .backend-toggle-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+
+        .backend-toggle {
+            background: white;
+            border-radius: 50px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .backend-option {
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            z-index: 1;
+            color: #666;
+        }
+
+        .backend-option.active {
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .backend-info {
+            color: white;
+            font-size: 14px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .backend-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
         .search-box {
             background: white;
             border-radius: 12px;
@@ -354,6 +405,18 @@
             <p>PostgreSQL pg_trgm Trigram-based Search</p>
         </div>
 
+        <!-- Backend Toggle -->
+        <div class="backend-toggle-container">
+            <div class="backend-toggle" id="backend-toggle">
+                <div class="backend-option active" data-backend="nodejs">Node.js</div>
+                <div class="backend-option" data-backend="go">Go</div>
+            </div>
+            <div class="backend-info">
+                <span>當前：</span>
+                <span class="backend-badge" id="current-backend-info">Node.js (Port 3000)</span>
+            </div>
+        </div>
+
         <!-- Admin Panel -->
         <div class="admin-panel">
             <div class="admin-header">
@@ -449,6 +512,82 @@
         let debounceTimer;
         let currentSearch = '';
 
+        // Backend 配置
+        let currentBackend = localStorage.getItem('selectedBackend') || 'nodejs';
+        const backendConfig = {
+            nodejs: {
+                baseUrl: 'http://localhost:3000',
+                label: 'Node.js (Port 3000)'
+            },
+            go: {
+                baseUrl: 'http://localhost:3001',
+                label: 'Go (Port 3001)'
+            }
+        };
+
+        // 取得當前 API Base URL
+        function getApiBaseUrl() {
+            return backendConfig[currentBackend].baseUrl;
+        }
+
+        // 初始化 backend 選擇
+        function initBackendToggle() {
+            const options = document.querySelectorAll('.backend-option');
+            options.forEach(option => {
+                const backend = option.dataset.backend;
+                if (backend === currentBackend) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+            updateBackendInfo();
+        }
+
+        // 切換 backend
+        function switchBackend(backend) {
+            if (backend === currentBackend) return;
+            
+            currentBackend = backend;
+            localStorage.setItem('selectedBackend', backend);
+            
+            // 更新 UI
+            const options = document.querySelectorAll('.backend-option');
+            options.forEach(option => {
+                if (option.dataset.backend === backend) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+            
+            updateBackendInfo();
+            
+            // 重新執行當前搜尋
+            if (currentSearch) {
+                performSearch(currentSearch);
+            }
+            
+            // 重新載入統計（如果管理面板開啟）
+            if (adminOpen) {
+                refreshStats();
+            }
+        }
+
+        // 更新 backend 資訊顯示
+        function updateBackendInfo() {
+            const infoEl = document.getElementById('current-backend-info');
+            infoEl.textContent = backendConfig[currentBackend].label;
+        }
+
+        // Backend toggle 事件監聽
+        document.getElementById('backend-toggle').addEventListener('click', (e) => {
+            const option = e.target.closest('.backend-option');
+            if (option) {
+                switchBackend(option.dataset.backend);
+            }
+        });
+
         // Debounced search function
         function debounceSearch(query) {
             clearTimeout(debounceTimer);
@@ -471,7 +610,8 @@
             showLoading();
 
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+                const apiUrl = `${getApiBaseUrl()}/search?q=${encodeURIComponent(trimmedQuery)}`;
+                const response = await fetch(apiUrl);
 
                 if (!response.ok) {
                     throw new Error('Search request failed');
@@ -586,6 +726,9 @@
         // Initial state
         showEmptyState();
 
+        // 初始化 backend toggle
+        initBackendToggle();
+
         // Focus on input on load
         keywordInput.focus();
 
@@ -636,7 +779,8 @@
         // Refresh statistics
         async function refreshStats() {
             try {
-                const response = await fetch('/admin/data/stats');
+                const apiUrl = `${getApiBaseUrl()}/admin/data/stats`;
+                const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error('Failed to fetch stats');
                 
                 const data = await response.json();
@@ -662,7 +806,8 @@
             showAdminMessage(`正在產生 ${count.toLocaleString()} 筆資料...`, 'info');
 
             try {
-                const response = await fetch('/admin/data/generate', {
+                const apiUrl = `${getApiBaseUrl()}/admin/data/generate`;
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ count })
@@ -698,7 +843,8 @@
             showAdminMessage('正在清空資料...', 'info');
 
             try {
-                const response = await fetch('/admin/data/clear', {
+                const apiUrl = `${getApiBaseUrl()}/admin/data/clear`;
+                const response = await fetch(apiUrl, {
                     method: 'DELETE'
                 });
 
@@ -733,7 +879,8 @@
             showAdminMessage('正在重建索引...', 'info');
 
             try {
-                const response = await fetch('/admin/data/rebuild-indexes', {
+                const apiUrl = `${getApiBaseUrl()}/admin/data/rebuild-indexes`;
+                const response = await fetch(apiUrl, {
                     method: 'POST'
                 });
 
